@@ -429,12 +429,6 @@ ansible node01 -m ping -vvvv
 
 - **RDaneel-5090** - *Développement initial*
 
-## 📄 Licence
-
-Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de détails.
-
----
-
 ## 🙏 Remerciements
 
 - Documentation Ansible: https://docs.ansible.com/
