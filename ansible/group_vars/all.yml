@@ -1,0 +1,23 @@
+---
+# Variables globales pour tous les hôtes
+
+# Configuration réseau
+network_prefix: "192.168.56"
+vip_address: "192.168.56.100"
+vip_cidr: "24"
+vip_interface: "eth1"
+
+# Configuration du domaine
+domain_name: "lab.local"
+domain_netbios: "LAB"
+
+# Configuration du cluster
+cluster_name: "ha-cluster"
+
+# Configuration Zabbix
+zabbix_server: "192.168.56.10"
+zabbix_server_port: "10051"
+zabbix_agent_port: "10050"
+
+# Timezone
+timezone: "Europe/Paris"

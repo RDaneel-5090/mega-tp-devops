@@ -1,0 +1,40 @@
+#!/bin/bash
+# Script de monitoring du cluster Pacemaker pour Zabbix
+# Généré par Ansible
+
+METRIC=$1
+
+case $METRIC in
+    status)
+        # Vérifier l'état général du cluster
+        if pcs cluster status &>/dev/null; then
+            echo 1
+        else
+            echo 0
+        fi
+        ;;
+    nodes_online)
+        # Nombre de nœuds en ligne
+        pcs status nodes | grep -c "Online:" 2>/dev/null || echo 0
+        ;;
+    resources_running)
+        # Nombre de ressources en cours d'exécution
+        pcs resource status | grep -c "Started" 2>/dev/null || echo 0
+        ;;
+    resources_stopped)
+        # Nombre de ressources arrêtées
+        pcs resource status | grep -c "Stopped" 2>/dev/null || echo 0
+        ;;
+    vip_status)
+        # Vérifier si la VIP est active sur ce nœud
+        ip addr show | grep -q "{{ vip_address }}" && echo 1 || echo 0
+        ;;
+    is_master)
+        # Vérifier si ce nœud est le master (possède la VIP)
+        ip addr show | grep -q "{{ vip_address }}" && echo 1 || echo 0
+        ;;
+    *)
+        echo "Usage: $0 {status|nodes_online|resources_running|resources_stopped|vip_status|is_master}"
+        exit 1
+        ;;
+esac

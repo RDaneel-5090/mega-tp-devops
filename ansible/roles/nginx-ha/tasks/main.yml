@@ -1,0 +1,86 @@
+---
+# ============================================
+# Role: nginx-ha
+# Déploiement de Nginx en haute disponibilité
+# ============================================
+
+- name: Installer Nginx
+  dnf:
+    name: nginx
+    state: present
+
+- name: Créer le répertoire web
+  file:
+    path: /var/www/html
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: '0755'
+
+- name: Déployer la page web personnalisée
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: nginx
+    group: nginx
+    mode: '0644'
+
+- name: Déployer la configuration Nginx
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: reload nginx
+
+- name: Créer la configuration du site par défaut
+  template:
+    src: default.conf.j2
+    dest: /etc/nginx/conf.d/default.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+
+- name: Vérifier la syntaxe de la configuration Nginx
+  command: nginx -t
+  changed_when: false
+
+- name: Ouvrir le port HTTP dans firewalld
+  firewalld:
+    service: http
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Ouvrir le port HTTPS dans firewalld
+  firewalld:
+    service: https
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+# Note: Ne pas activer nginx au démarrage - géré par Pacemaker
+- name: S'assurer que Nginx n'est PAS activé au démarrage (géré par Pacemaker)
+  service:
+    name: nginx
+    enabled: no
+
+- name: Démarrer Nginx pour la configuration initiale
+  service:
+    name: nginx
+    state: started
+
+- name: Tester l'accès local à Nginx
+  uri:
+    url: "http://localhost"
+    status_code: 200
+  register: nginx_test
+  ignore_errors: yes
+
+- name: Résultat du test Nginx
+  debug:
+    msg: "Nginx est opérationnel sur {{ inventory_hostname }}"
+  when: nginx_test.status == 200

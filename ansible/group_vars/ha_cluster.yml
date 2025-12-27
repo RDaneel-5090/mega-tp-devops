@@ -1,0 +1,40 @@
+---
+# Variables pour le groupe ha_cluster (Node01 & Node02)
+
+# Configuration du cluster
+cluster_name: "ha-cluster"
+cluster_auth_key: "SuperSecretClusterKey2025!"
+
+# Configuration réseau
+vip_address: "192.168.56.100"
+vip_cidr: "24"
+vip_interface: "eth1"
+network_prefix: "192.168.56"
+
+# Configuration du domaine
+domain_name: "lab.local"
+domain_netbios: "LAB"
+
+# Configuration Zabbix
+zabbix_server: "192.168.56.10"
+zabbix_server_port: "10051"
+zabbix_agent_port: "10050"
+
+# Services à ouvrir dans le pare-feu
+firewall_services:
+  - ssh
+  - http
+  - https
+  - high-availability
+  - samba
+
+# Ports spécifiques à ouvrir
+firewall_ports:
+  - 10050/tcp   # Zabbix Agent
+  - 10051/tcp   # Zabbix Server (trapper)
+  - 2224/tcp    # PCS Web UI
+  - 3121/tcp    # Pacemaker Remote
+  - 5403/tcp    # Corosync Qdevice
+  - 5404/udp    # Corosync multicast
+  - 5405/udp    # Corosync multicast
+  - 21064/tcp   # DLM

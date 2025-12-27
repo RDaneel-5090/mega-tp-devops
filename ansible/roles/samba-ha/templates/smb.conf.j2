@@ -1,0 +1,80 @@
+# Configuration Samba - Cluster Haute Disponibilité
+# Généré par Ansible - Ne pas modifier manuellement
+# Serveur: {{ ansible_hostname }}
+
+[global]
+    # Identification du serveur
+    workgroup = {{ domain_netbios | default('WORKGROUP') }}
+    server string = Samba Server HA - {{ ansible_hostname }}
+    netbios name = CLUSTER-SMB
+    
+    # Sécurité
+    security = user
+    map to guest = Bad User
+    guest account = nobody
+    
+    # Logs
+    log file = /var/log/samba/log.%m
+    max log size = 50
+    log level = 1
+    
+    # Performance
+    socket options = TCP_NODELAY IPTOS_LOWDELAY
+    read raw = yes
+    write raw = yes
+    oplocks = yes
+    max xmit = 65535
+    dead time = 15
+    getwd cache = yes
+    
+    # Désactiver les protocoles obsolètes
+    server min protocol = SMB2
+    client min protocol = SMB2
+    
+    # Cluster - permettre les connexions via la VIP
+    interfaces = lo {{ vip_interface }} {{ ansible_host }}
+    bind interfaces only = yes
+    
+    # Printing désactivé
+    load printers = no
+    printing = bsd
+    printcap name = /dev/null
+    disable spoolss = yes
+
+# ============================================
+# Partage public - accès en lecture/écriture pour tous
+# ============================================
+[share]
+    comment = Partage public du cluster HA
+    path = /srv/samba/share
+    browseable = yes
+    writable = yes
+    guest ok = yes
+    create mask = 0664
+    directory mask = 0775
+    force user = nobody
+    force group = nobody
+
+# ============================================
+# Partage privé - accès authentifié uniquement
+# ============================================
+[private]
+    comment = Partage privé du cluster HA
+    path = /srv/samba/private
+    browseable = yes
+    writable = yes
+    guest ok = no
+    valid users = @wheel, root
+    create mask = 0660
+    directory mask = 0770
+
+# ============================================
+# Partage des logs (lecture seule)
+# ============================================
+[logs]
+    comment = Logs du serveur
+    path = /var/log
+    browseable = yes
+    writable = no
+    guest ok = no
+    valid users = @wheel, root

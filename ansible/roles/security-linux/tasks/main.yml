@@ -1,0 +1,276 @@
+---
+# ============================================
+# Role: security-linux
+# Durcissement (Hardening) des serveurs RedHat
+# Mission 2 du TP
+# ============================================
+
+# ============================================
+# Configuration du pare-feu (firewalld)
+# ============================================
+- name: S'assurer que firewalld est installé
+  dnf:
+    name: firewalld
+    state: present
+
+- name: Activer et démarrer firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+
+- name: Configurer la zone par défaut
+  command: firewall-cmd --set-default-zone=public
+  changed_when: false
+
+- name: Ouvrir les services nécessaires
+  firewalld:
+    service: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop: "{{ firewall_services }}"
+
+- name: Ouvrir les ports spécifiques
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop: "{{ firewall_ports }}"
+
+- name: Bloquer les requêtes ICMP non essentielles
+  firewalld:
+    icmp_block: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop:
+    - echo-reply
+    - timestamp-reply
+    - timestamp-request
+  ignore_errors: yes
+
+# ============================================
+# Sécurisation SSH
+# ============================================
+- name: Désactiver la connexion SSH en root
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+    state: present
+  notify: restart sshd
+
+- name: Désactiver l'authentification par mot de passe vide
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitEmptyPasswords'
+    line: 'PermitEmptyPasswords no'
+    state: present
+  notify: restart sshd
+
+- name: Limiter les tentatives d'authentification SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?MaxAuthTries'
+    line: 'MaxAuthTries 3'
+    state: present
+  notify: restart sshd
+
+- name: Configurer le timeout d'inactivité SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ClientAliveInterval'
+    line: 'ClientAliveInterval 300'
+    state: present
+  notify: restart sshd
+
+- name: Configurer le nombre de timeout SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ClientAliveCountMax'
+    line: 'ClientAliveCountMax 2'
+    state: present
+  notify: restart sshd
+
+- name: Désactiver le protocole SSH v1
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Protocol'
+    line: 'Protocol 2'
+    state: present
+  notify: restart sshd
+
+- name: Limiter les utilisateurs autorisés à se connecter en SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AllowUsers'
+    line: 'AllowUsers ansible vagrant'
+    state: present
+  notify: restart sshd
+
+# ============================================
+# Mise à jour automatique des paquets de sécurité
+# ============================================
+- name: Installer dnf-automatic pour les mises à jour automatiques
+  dnf:
+    name: dnf-automatic
+    state: present
+
+- name: Configurer dnf-automatic pour les mises à jour de sécurité
+  template:
+    src: automatic.conf.j2
+    dest: /etc/dnf/automatic.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Activer le timer dnf-automatic
+  systemd:
+    name: dnf-automatic.timer
+    state: started
+    enabled: yes
+
+# ============================================
+# Durcissement système supplémentaire
+# ============================================
+- name: Désactiver les services inutiles
+  service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  loop:
+    - cups
+    - avahi-daemon
+    - bluetooth
+  ignore_errors: yes
+
+- name: Configurer les limites de sécurité (limits.conf)
+  lineinfile:
+    path: /etc/security/limits.conf
+    line: "{{ item }}"
+    state: present
+  loop:
+    - "* hard core 0"
+    - "* soft nofile 65535"
+    - "* hard nofile 65535"
+
+- name: Désactiver le core dump
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: "fs.suid_dumpable = 0"
+    state: present
+  notify: reload sysctl
+
+- name: Activer la protection ASLR
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: "kernel.randomize_va_space = 2"
+    state: present
+  notify: reload sysctl
+
+- name: Désactiver le routage IP
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: "net.ipv4.ip_forward = 0"
+    state: present
+  notify: reload sysctl
+
+- name: Ignorer les paquets ICMP broadcast
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: "net.ipv4.icmp_echo_ignore_broadcasts = 1"
+    state: present
+  notify: reload sysctl
+
+- name: Activer la protection SYN cookie
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: "net.ipv4.tcp_syncookies = 1"
+    state: present
+  notify: reload sysctl
+
+# ============================================
+# Audit et journalisation
+# ============================================
+- name: S'assurer que auditd est installé
+  dnf:
+    name: audit
+    state: present
+
+- name: Activer auditd
+  service:
+    name: auditd
+    state: started
+    enabled: yes
+
+- name: Configurer les règles d'audit de base
+  copy:
+    content: |
+      # Règles d'audit de sécurité
+      # Surveiller les modifications des fichiers de configuration
+      -w /etc/passwd -p wa -k identity
+      -w /etc/group -p wa -k identity
+      -w /etc/shadow -p wa -k identity
+      -w /etc/sudoers -p wa -k sudoers
+      -w /etc/ssh/sshd_config -p wa -k sshd_config
+      
+      # Surveiller les connexions
+      -w /var/log/lastlog -p wa -k logins
+      -w /var/log/faillog -p wa -k logins
+      
+      # Surveiller les changements de date/heure
+      -a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change
+    dest: /etc/audit/rules.d/security.rules
+    owner: root
+    group: root
+    mode: '0640'
+  notify: restart auditd
+
+# ============================================
+# Bannière de connexion
+# ============================================
+- name: Configurer la bannière de connexion SSH
+  copy:
+    content: |
+      ************************************************************
+      *                    ATTENTION                              *
+      *                                                           *
+      *  Ce système est la propriété de l'organisation.           *
+      *  L'accès non autorisé est interdit.                      *
+      *  Toutes les activités sont surveillées et enregistrées.  *
+      *                                                           *
+      *  Serveur: {{ ansible_hostname }}                          *
+      *  Cluster: {{ cluster_name }}                              *
+      *                                                           *
+      ************************************************************
+    dest: /etc/issue.net
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Activer la bannière SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Banner'
+    line: 'Banner /etc/issue.net'
+    state: present
+  notify: restart sshd
+
+- name: Résumé du durcissement
+  debug:
+    msg: |
+      ═══════════════════════════════════════════════════════════
+      DURCISSEMENT APPLIQUÉ SUR {{ ansible_hostname }}
+      ═══════════════════════════════════════════════════════════
+      
+      ✓ Pare-feu firewalld configuré
+      ✓ SSH sécurisé (root désactivé, limites configurées)
+      ✓ Mises à jour automatiques de sécurité activées
+      ✓ Services inutiles désactivés
+      ✓ Paramètres sysctl durcis
+      ✓ Audit système activé
+      ✓ Bannière de connexion configurée
+      
+      ═══════════════════════════════════════════════════════════

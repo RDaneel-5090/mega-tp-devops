@@ -1,0 +1,57 @@
+---
+# ============================================
+# Playbook Windows - windows.yml
+# Configuration Active Directory et sécurisation
+# ============================================
+
+- name: "Vérification de la connectivité Windows"
+  hosts: windows_servers
+  gather_facts: no
+  tasks:
+    - name: Attendre que WinRM soit accessible
+      wait_for_connection:
+        timeout: 300
+
+    - name: Récupérer les informations système
+      win_ping:
+
+- name: "Installation et configuration Active Directory"
+  hosts: windows_servers
+  roles:
+    - role: windows-ad
+      tags: [windows, ad, activedirectory]
+
+- name: "Durcissement Windows Server"
+  hosts: windows_servers
+  roles:
+    - role: windows-hardening
+      tags: [windows, security, hardening]
+
+- name: "Résumé Windows"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Afficher le résumé
+      debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════
+          CONFIGURATION WINDOWS TERMINÉE
+          ═══════════════════════════════════════════════════════════
+          
+          🏢 Active Directory:
+             - Domaine: lab.local
+             - NetBIOS: LAB
+             - DNS: Configuré
+          
+          🔒 Sécurité appliquée:
+             - LAPS installé
+             - Compte Guest désactivé
+             - Pare-feu activé
+             - Politique MDP stricte
+             - Protocoles obsolètes désactivés
+          
+          👤 Compte de test:
+             - Login: LAB\testuser
+             - Mot de passe: Test2025!
+          
+          ═══════════════════════════════════════════════════════════

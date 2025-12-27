@@ -1,0 +1,40 @@
+# Vagrant
+.vagrant/
+*.box
+
+# Ansible
+*.retry
+ansible.log
+*.pyc
+__pycache__/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Secrets (ne jamais commiter)
+**/secrets/
+**/vault_pass*
+*.vault
+
+# Fichiers temporaires
+tmp/
+temp/
+*.tmp
+*.bak
+
+# SSH keys (à ne jamais commiter)
+*.pem
+*.key
+id_rsa*

@@ -1,0 +1,123 @@
+---
+# ============================================
+# Playbook Principal - Infrastructure DevOps HA
+# Mega TP - Administration de systèmes répartis
+# ============================================
+# 
+# Ce playbook déploie l'infrastructure complète:
+# - Serveur Zabbix sur Admin
+# - Cluster HA Pacemaker/Corosync sur Node01/Node02
+# - Services Web (Nginx) et Fichiers (Samba) en HA
+# - Active Directory sur WinSrv
+# - Sécurisation de tous les serveurs
+#
+# Usage: ansible-playbook site.yml
+# ============================================
+
+- name: "Phase 0 - Vérification de la connectivité"
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Attendre que les machines soient accessibles
+      wait_for_connection:
+        timeout: 300
+      tags: always
+
+- name: "Phase 1 - Configuration commune des serveurs Linux"
+  hosts: linux_servers
+  become: yes
+  roles:
+    - role: common
+      tags: [common, setup]
+
+- name: "Phase 2 - Déploiement du serveur Zabbix"
+  hosts: zabbix_servers
+  become: yes
+  roles:
+    - role: zabbix-server
+      tags: [zabbix, monitoring]
+
+- name: "Phase 3 - Configuration du cluster HA"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: ha-cluster
+      tags: [cluster, ha, pacemaker, corosync]
+
+- name: "Phase 4 - Déploiement Nginx en HA"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: nginx-ha
+      tags: [nginx, web, ha]
+
+- name: "Phase 5 - Déploiement Samba en HA"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: samba-ha
+      tags: [samba, smb, ha]
+
+- name: "Phase 6 - Configuration des ressources du cluster"
+  hosts: ha_cluster[0]
+  become: yes
+  tasks:
+    - name: Inclure les tâches de configuration des ressources cluster
+      include_role:
+        name: ha-cluster
+        tasks_from: configure_resources.yml
+      tags: [cluster, resources]
+
+- name: "Phase 7 - Sécurisation des serveurs Linux"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: security-linux
+      tags: [security, hardening, linux]
+
+- name: "Phase 8 - Installation des agents Zabbix"
+  hosts: zabbix_agents
+  become: yes
+  roles:
+    - role: zabbix-agent
+      tags: [zabbix, monitoring, agent]
+
+- name: "Phase 9 - Configuration Windows Server & Active Directory"
+  hosts: windows_servers
+  roles:
+    - role: windows-ad
+      tags: [windows, ad, activedirectory]
+
+- name: "Phase 10 - Sécurisation Windows Server"
+  hosts: windows_servers
+  roles:
+    - role: windows-hardening
+      tags: [windows, security, hardening]
+
+- name: "Phase Finale - Vérification de l'infrastructure"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Afficher le résumé du déploiement
+      debug:
+        msg: |
+          ╔══════════════════════════════════════════════════════════════╗
+          ║        DÉPLOIEMENT DE L'INFRASTRUCTURE TERMINÉ              ║
+          ╠══════════════════════════════════════════════════════════════╣
+          ║                                                              ║
+          ║  🖥️  Services déployés:                                      ║
+          ║      - Zabbix Server: http://192.168.56.10/zabbix           ║
+          ║      - Cluster VIP (Web): http://192.168.56.100             ║
+          ║      - Samba Share: \\192.168.56.100\share                  ║
+          ║      - Active Directory: lab.local                          ║
+          ║                                                              ║
+          ║  📊 Credentials:                                             ║
+          ║      - Zabbix: Admin / zabbix                               ║
+          ║      - AD Admin: LAB\Administrator / Admin2025!             ║
+          ║                                                              ║
+          ║  🔧 Commandes utiles:                                        ║
+          ║      - État cluster: sudo pcs status                        ║
+          ║      - Logs cluster: sudo journalctl -u pacemaker           ║
+          ║                                                              ║
+          ╚══════════════════════════════════════════════════════════════╝
+      tags: always

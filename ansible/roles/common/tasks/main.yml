@@ -1,0 +1,107 @@
+---
+# ============================================
+# Role: common
+# Tâches de configuration commune pour tous les serveurs Linux
+# ============================================
+
+- name: Définir le hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Configurer /etc/hosts avec tous les nœuds
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configurer le fuseau horaire
+  timezone:
+    name: Europe/Paris
+
+- name: Installer chrony pour la synchronisation NTP
+  package:
+    name: chrony
+    state: present
+
+- name: Activer et démarrer chronyd
+  service:
+    name: chronyd
+    state: started
+    enabled: yes
+
+# Configuration spécifique Ubuntu
+- name: Configuration spécifique Ubuntu
+  when: ansible_os_family == "Debian"
+  block:
+    - name: Mettre à jour le cache APT
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Installer les paquets de base (Ubuntu)
+      apt:
+        name:
+          - vim
+          - curl
+          - wget
+          - net-tools
+          - htop
+          - tree
+          - git
+          - unzip
+          - python3-pip
+          - software-properties-common
+        state: present
+
+# Configuration spécifique RedHat/CentOS
+- name: Configuration spécifique RedHat
+  when: ansible_os_family == "RedHat"
+  block:
+    - name: Activer les dépôts EPEL et PowerTools
+      dnf:
+        name:
+          - epel-release
+        state: present
+
+    - name: Activer CRB (CodeReady Builder)
+      command: dnf config-manager --set-enabled crb
+      changed_when: false
+
+    - name: Installer les paquets de base (RedHat)
+      dnf:
+        name:
+          - vim
+          - curl
+          - wget
+          - net-tools
+          - htop
+          - tree
+          - git
+          - unzip
+          - python3-pip
+          - policycoreutils-python-utils
+        state: present
+
+    - name: Configurer SELinux en mode permissif
+      selinux:
+        policy: targeted
+        state: permissive
+
+- name: Créer le répertoire pour les scripts personnalisés
+  file:
+    path: /opt/scripts
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Afficher les informations système
+  debug:
+    msg: |
+      Hostname: {{ ansible_hostname }}
+      OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+      IP: {{ ansible_host }}
+      Memory: {{ ansible_memtotal_mb }} MB
+      CPUs: {{ ansible_processor_vcpus }}

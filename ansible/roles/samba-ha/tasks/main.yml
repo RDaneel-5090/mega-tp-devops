@@ -1,0 +1,105 @@
+---
+# ============================================
+# Role: samba-ha
+# Déploiement de Samba (SMB) en haute disponibilité
+# ============================================
+
+- name: Installer Samba
+  dnf:
+    name:
+      - samba
+      - samba-client
+      - samba-common
+    state: present
+
+- name: Créer le répertoire de partage
+  file:
+    path: /srv/samba/share
+    state: directory
+    owner: nobody
+    group: nobody
+    mode: '0777'
+
+- name: Créer le répertoire de partage privé
+  file:
+    path: /srv/samba/private
+    state: directory
+    owner: root
+    group: root
+    mode: '0770'
+
+- name: Déployer la configuration Samba
+  template:
+    src: smb.conf.j2
+    dest: /etc/samba/smb.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: restart smb
+
+- name: Créer un fichier de test dans le partage
+  copy:
+    content: |
+      ================================================================
+      Bienvenue sur le partage Samba du Cluster HA
+      ================================================================
+      
+      Ce fichier est servi depuis: {{ ansible_hostname }}
+      Date de création: {{ ansible_date_time.iso8601 }}
+      
+      Cluster: {{ cluster_name }}
+      VIP: {{ vip_address }}
+      
+      ================================================================
+    dest: /srv/samba/share/README.txt
+    owner: nobody
+    group: nobody
+    mode: '0644'
+
+- name: Vérifier la configuration Samba
+  command: testparm -s
+  changed_when: false
+  register: samba_test
+
+- name: Ouvrir le port Samba dans firewalld
+  firewalld:
+    service: samba
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+# Note: Ne pas activer smb au démarrage - géré par Pacemaker
+- name: S'assurer que SMB n'est PAS activé au démarrage (géré par Pacemaker)
+  service:
+    name: smb
+    enabled: no
+
+- name: S'assurer que NMB n'est PAS activé au démarrage
+  service:
+    name: nmb
+    enabled: no
+
+- name: Démarrer Samba pour la configuration initiale
+  service:
+    name: smb
+    state: started
+
+- name: Démarrer NMB
+  service:
+    name: nmb
+    state: started
+
+- name: Créer un utilisateur Samba pour les tests
+  shell: |
+    (echo "samba123"; echo "samba123") | smbpasswd -a nobody -s
+  args:
+    creates: /var/lib/samba/private/passdb.tdb
+  ignore_errors: yes
+
+- name: Afficher le résultat de la configuration Samba
+  debug:
+    msg: |
+      Samba configuré sur {{ ansible_hostname }}
+      Partage public: \\{{ vip_address }}\share
+      Partage privé: \\{{ vip_address }}\private

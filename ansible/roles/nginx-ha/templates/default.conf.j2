@@ -1,0 +1,40 @@
+# Configuration du site par défaut
+# Cluster HA - {{ ansible_hostname }}
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    
+    server_name _;
+    root /var/www/html;
+    index index.html index.htm;
+
+    # Page de statut pour le monitoring
+    location /nginx_status {
+        stub_status on;
+        access_log off;
+        allow 127.0.0.1;
+        allow {{ network_prefix }}.0/24;
+        deny all;
+    }
+
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "OK - {{ ansible_hostname }}\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Page principale
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Pages d'erreur personnalisées
+    error_page 404 /404.html;
+    error_page 500 502 503 504 /50x.html;
+    
+    location = /50x.html {
+        root /usr/share/nginx/html;
+    }
+}

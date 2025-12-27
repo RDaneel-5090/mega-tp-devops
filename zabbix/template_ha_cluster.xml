@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+    <version>7.0</version>
+    <template>
+        <name>Template HA Cluster</name>
+        <template>template_ha_cluster</template>
+        <description>Template personnalisé pour la supervision du cluster Pacemaker/Corosync</description>
+        <groups>
+            <group>
+                <name>Templates/Custom</name>
+            </group>
+        </groups>
+        <items>
+            <!-- Cluster Status -->
+            <item>
+                <name>Cluster Status</name>
+                <key>cluster.status</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>État général du cluster (1=OK, 0=KO)</description>
+                <triggers>
+                    <trigger>
+                        <expression>{last()}=0</expression>
+                        <name>Cluster is DOWN on {HOST.NAME}</name>
+                        <priority>HIGH</priority>
+                    </trigger>
+                </triggers>
+            </item>
+            <item>
+                <name>Cluster Nodes Online</name>
+                <key>cluster.nodes.online</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>Nombre de nœuds en ligne</description>
+                <triggers>
+                    <trigger>
+                        <expression>{last()}&lt;2</expression>
+                        <name>Less than 2 nodes online on {HOST.NAME}</name>
+                        <priority>WARNING</priority>
+                    </trigger>
+                </triggers>
+            </item>
+            <item>
+                <name>Cluster Resources Running</name>
+                <key>cluster.resources.running</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>Nombre de ressources en cours d'exécution</description>
+            </item>
+            <item>
+                <name>VIP Status</name>
+                <key>cluster.vip.status</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>La VIP est-elle sur ce nœud (1=Oui, 0=Non)</description>
+            </item>
+            <item>
+                <name>Is Master Node</name>
+                <key>cluster.is.master</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>Ce nœud est-il le master actif</description>
+            </item>
+            <!-- Nginx Monitoring -->
+            <item>
+                <name>Nginx Service Status</name>
+                <key>nginx.status</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>État du service Nginx (1=Running, 0=Stopped)</description>
+                <triggers>
+                    <trigger>
+                        <expression>{last()}=0</expression>
+                        <name>Nginx is DOWN on {HOST.NAME}</name>
+                        <priority>HIGH</priority>
+                    </trigger>
+                </triggers>
+            </item>
+            <item>
+                <name>Nginx HTTP Check</name>
+                <key>nginx.http.check</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>Le site répond-il (1=OK, 0=KO)</description>
+            </item>
+            <item>
+                <name>Nginx Response Time (ms)</name>
+                <key>nginx.response.time</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <units>ms</units>
+                <description>Temps de réponse HTTP en millisecondes</description>
+            </item>
+            <!-- Samba Monitoring -->
+            <item>
+                <name>Samba Service Status</name>
+                <key>samba.status</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>État du service Samba (1=Running, 0=Stopped)</description>
+                <triggers>
+                    <trigger>
+                        <expression>{last()}=0</expression>
+                        <name>Samba is DOWN on {HOST.NAME}</name>
+                        <priority>HIGH</priority>
+                    </trigger>
+                </triggers>
+            </item>
+            <item>
+                <name>Samba Connections</name>
+                <key>samba.connections</key>
+                <type>ZABBIX_ACTIVE</type>
+                <value_type>UNSIGNED</value_type>
+                <description>Nombre de connexions Samba actives</description>
+            </item>
+        </items>
+        <graphs>
+            <graph>
+                <name>Cluster Resources Overview</name>
+                <graph_items>
+                    <graph_item>
+                        <color>00AA00</color>
+                        <item>
+                            <key>cluster.resources.running</key>
+                        </item>
+                    </graph_item>
+                </graph_items>
+            </graph>
+            <graph>
+                <name>Nginx Response Time</name>
+                <graph_items>
+                    <graph_item>
+                        <color>0000AA</color>
+                        <item>
+                            <key>nginx.response.time</key>
+                        </item>
+                    </graph_item>
+                </graph_items>
+            </graph>
+        </graphs>
+    </template>
+</zabbix_export>

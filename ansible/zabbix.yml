@@ -1,0 +1,59 @@
+---
+# ============================================
+# Playbook Zabbix - zabbix.yml
+# Déploiement du serveur et des agents Zabbix
+# ============================================
+
+- name: "Installation du serveur Zabbix"
+  hosts: zabbix_servers
+  become: yes
+  roles:
+    - role: zabbix-server
+      tags: [zabbix, server, monitoring]
+
+- name: "Installation des agents Zabbix"
+  hosts: zabbix_agents
+  become: yes
+  roles:
+    - role: zabbix-agent
+      tags: [zabbix, agent, monitoring]
+
+- name: "Vérification de Zabbix"
+  hosts: zabbix_servers
+  become: yes
+  tasks:
+    - name: Vérifier que Zabbix Server est accessible
+      uri:
+        url: "http://localhost/zabbix"
+        status_code: 200
+      register: zabbix_test
+      ignore_errors: yes
+
+    - name: Afficher le résumé Zabbix
+      debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════
+          ZABBIX DÉPLOYÉ AVEC SUCCÈS
+          ═══════════════════════════════════════════════════════════
+          
+          📊 Serveur Zabbix:
+             - URL: http://{{ ansible_host }}/zabbix
+             - Status: {{ 'OK' if zabbix_test.status == 200 else 'En cours de démarrage' }}
+          
+          🔑 Identifiants par défaut:
+             - Utilisateur: Admin
+             - Mot de passe: zabbix
+          
+          📡 Agents installés sur:
+             - node01 (192.168.56.11)
+             - node02 (192.168.56.12)
+          
+          📈 Métriques disponibles:
+             - CPU / RAM / Disque
+             - État du cluster
+             - Status Nginx
+             - Status Samba
+          
+          ⚠️  N'oubliez pas de changer le mot de passe par défaut !
+          
+          ═══════════════════════════════════════════════════════════

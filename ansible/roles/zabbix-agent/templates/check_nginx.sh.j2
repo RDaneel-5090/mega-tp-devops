@@ -1,0 +1,41 @@
+#!/bin/bash
+# Script de monitoring Nginx pour Zabbix
+# Généré par Ansible
+
+METRIC=$1
+
+case $METRIC in
+    status)
+        # Vérifier si Nginx est en cours d'exécution
+        if systemctl is-active nginx &>/dev/null; then
+            echo 1
+        else
+            echo 0
+        fi
+        ;;
+    connections_active)
+        # Nombre de connexions actives
+        curl -s http://localhost/nginx_status 2>/dev/null | grep "Active" | awk '{print $3}' || echo 0
+        ;;
+    requests_per_second)
+        # Requêtes par seconde (nécessite nginx_status)
+        curl -s http://localhost/nginx_status 2>/dev/null | awk '/Reading/ {print $2}' || echo 0
+        ;;
+    http_check)
+        # Vérifier si le site répond
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/ 2>/dev/null)
+        if [ "$HTTP_CODE" = "200" ]; then
+            echo 1
+        else
+            echo 0
+        fi
+        ;;
+    response_time)
+        # Temps de réponse en millisecondes
+        curl -s -o /dev/null -w "%{time_total}" http://localhost/ 2>/dev/null | awk '{printf "%.0f", $1*1000}'
+        ;;
+    *)
+        echo "Usage: $0 {status|connections_active|requests_per_second|http_check|response_time}"
+        exit 1
+        ;;
+esac

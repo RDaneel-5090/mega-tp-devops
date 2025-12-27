@@ -1,0 +1,17 @@
+---
+# Handlers pour le rôle samba-ha
+
+- name: restart smb
+  service:
+    name: smb
+    state: restarted
+
+- name: reload smb
+  service:
+    name: smb
+    state: reloaded
+
+- name: restart nmb
+  service:
+    name: nmb
+    state: restarted

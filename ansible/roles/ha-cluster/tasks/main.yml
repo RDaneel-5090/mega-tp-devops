@@ -1,0 +1,142 @@
+---
+# ============================================
+# Role: ha-cluster
+# Installation et configuration de Pacemaker & Corosync
+# ============================================
+
+- name: Installer les paquets du cluster HA
+  dnf:
+    name:
+      - pacemaker
+      - corosync
+      - pcs
+      - fence-agents-all
+      - resource-agents
+      - python3-pcs
+    state: present
+    enablerepo: highavailability
+
+- name: Activer le dépôt HA si nécessaire
+  command: dnf config-manager --set-enabled highavailability
+  changed_when: false
+  ignore_errors: yes
+
+- name: S'assurer que les paquets HA sont installés (fallback)
+  dnf:
+    name:
+      - pacemaker
+      - corosync
+      - pcs
+    state: present
+
+- name: Définir le mot de passe de l'utilisateur hacluster
+  user:
+    name: hacluster
+    password: "{{ cluster_auth_key | password_hash('sha512') }}"
+    state: present
+
+- name: Activer et démarrer le service pcsd
+  service:
+    name: pcsd
+    state: started
+    enabled: yes
+
+- name: Ouvrir les ports du cluster dans firewalld
+  firewalld:
+    service: high-availability
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Ouvrir les ports UDP pour Corosync
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop:
+    - 5404/udp
+    - 5405/udp
+
+- name: Ouvrir le port TCP pour PCS
+  firewalld:
+    port: 2224/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Attendre que pcsd soit prêt
+  wait_for:
+    port: 2224
+    delay: 5
+    timeout: 60
+
+# Authentification et création du cluster (uniquement sur le premier nœud)
+- name: Authentifier les nœuds du cluster
+  command: >
+    pcs host auth 
+    {{ groups['ha_cluster'] | map('extract', hostvars, 'ansible_host') | join(' ') }}
+    -u hacluster -p {{ cluster_auth_key }}
+  when: inventory_hostname == groups['ha_cluster'][0]
+  register: auth_result
+  changed_when: "'Authorized' in auth_result.stdout"
+  ignore_errors: yes
+
+- name: Vérifier si le cluster existe
+  command: pcs cluster status
+  register: cluster_status
+  changed_when: false
+  failed_when: false
+
+- name: Créer le cluster
+  command: >
+    pcs cluster setup {{ cluster_name }}
+    {% for host in groups['ha_cluster'] %}
+    {{ hostvars[host]['ansible_host'] }}
+    {% endfor %}
+    --start --enable --force
+  when: 
+    - inventory_hostname == groups['ha_cluster'][0]
+    - cluster_status.rc != 0
+  register: cluster_setup
+
+- name: Démarrer le cluster sur tous les nœuds
+  command: pcs cluster start --all
+  when: inventory_hostname == groups['ha_cluster'][0]
+  ignore_errors: yes
+
+- name: Activer le cluster au démarrage sur tous les nœuds
+  command: pcs cluster enable --all
+  when: inventory_hostname == groups['ha_cluster'][0]
+  ignore_errors: yes
+
+- name: Attendre que le cluster soit opérationnel
+  command: pcs cluster status
+  register: cluster_final_status
+  until: cluster_final_status.rc == 0
+  retries: 12
+  delay: 10
+  when: inventory_hostname == groups['ha_cluster'][0]
+
+- name: Configurer les propriétés du cluster
+  command: "{{ item }}"
+  loop:
+    # Désactiver STONITH pour l'environnement de lab (pas de périphérique de fencing)
+    - pcs property set stonith-enabled=false
+    # Désactiver le quorum pour un cluster à 2 nœuds
+    - pcs property set no-quorum-policy=ignore
+    # Configurer le stickiness pour éviter les basculements inutiles
+    - pcs resource defaults update resource-stickiness=100
+  when: inventory_hostname == groups['ha_cluster'][0]
+  ignore_errors: yes
+
+- name: Afficher l'état du cluster
+  command: pcs status
+  register: pcs_status
+  when: inventory_hostname == groups['ha_cluster'][0]
+  changed_when: false
+
+- name: Résultat de la configuration du cluster
+  debug:
+    var: pcs_status.stdout_lines
+  when: inventory_hostname == groups['ha_cluster'][0]

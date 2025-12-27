@@ -1,0 +1,59 @@
+# Configuration Zabbix Agent
+# Généré par Ansible - Ne pas modifier manuellement
+# Serveur: {{ ansible_hostname }}
+
+# ============================================
+# Configuration générale
+# ============================================
+PidFile=/run/zabbix/zabbix_agentd.pid
+LogFile=/var/log/zabbix/zabbix_agentd.log
+LogFileSize=10
+DebugLevel=3
+
+# ============================================
+# Configuration du serveur Zabbix
+# ============================================
+Server={{ zabbix_server }}
+ServerActive={{ zabbix_server }}
+Hostname={{ ansible_hostname }}
+HostnameItem=system.hostname
+
+# ============================================
+# Configuration du port
+# ============================================
+ListenPort={{ zabbix_agent_port }}
+ListenIP=0.0.0.0
+
+# ============================================
+# Paramètres de sécurité
+# ============================================
+AllowRoot=0
+User=zabbix
+
+# ============================================
+# Configuration des timeouts
+# ============================================
+Timeout=30
+StartAgents=3
+
+# ============================================
+# Buffers
+# ============================================
+BufferSend=5
+BufferSize=100
+
+# ============================================
+# Inclusion des configurations additionnelles
+# ============================================
+Include=/etc/zabbix/zabbix_agentd.d/*.conf
+
+# ============================================
+# Paramètres personnalisés pour le cluster HA
+# ============================================
+# Les UserParameters sont dans /etc/zabbix/zabbix_agentd.d/userparameter_cluster.conf
+
+# ============================================
+# Métadonnées de l'hôte
+# ============================================
+HostMetadataItem=system.uname
+HostMetadata=Linux {{ ansible_distribution }} {{ ansible_distribution_version }} HA-Node

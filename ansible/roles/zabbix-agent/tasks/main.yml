@@ -1,0 +1,100 @@
+---
+# ============================================
+# Role: zabbix-agent
+# Installation et configuration de Zabbix Agent sur RedHat
+# ============================================
+
+- name: Installer le dépôt Zabbix pour RedHat
+  dnf:
+    name: "https://repo.zabbix.com/zabbix/7.0/rhel/9/x86_64/zabbix-release-latest-7.0.el9.noarch.rpm"
+    state: present
+    disable_gpg_check: yes
+
+- name: Nettoyer le cache DNF
+  command: dnf clean all
+  changed_when: false
+
+- name: Installer Zabbix Agent
+  dnf:
+    name:
+      - zabbix-agent
+    state: present
+
+- name: Configurer Zabbix Agent
+  template:
+    src: zabbix_agentd.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: restart zabbix-agent
+
+- name: Créer le répertoire pour les scripts UserParameter
+  file:
+    path: /etc/zabbix/scripts
+    state: directory
+    owner: root
+    group: zabbix
+    mode: '0755'
+
+- name: Déployer le script de monitoring du cluster
+  template:
+    src: check_cluster.sh.j2
+    dest: /etc/zabbix/scripts/check_cluster.sh
+    owner: root
+    group: zabbix
+    mode: '0755'
+
+- name: Déployer le script de monitoring Nginx
+  template:
+    src: check_nginx.sh.j2
+    dest: /etc/zabbix/scripts/check_nginx.sh
+    owner: root
+    group: zabbix
+    mode: '0755'
+
+- name: Créer le fichier de configuration UserParameter
+  template:
+    src: userparameter_cluster.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.d/userparameter_cluster.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart zabbix-agent
+
+- name: Ouvrir le port Zabbix Agent dans firewalld
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop:
+    - 10050/tcp
+    - 10051/tcp
+
+- name: Activer et démarrer Zabbix Agent
+  service:
+    name: zabbix-agent
+    state: started
+    enabled: yes
+
+- name: Vérifier que l'agent Zabbix est opérationnel
+  wait_for:
+    port: 10050
+    delay: 5
+    timeout: 60
+
+- name: Tester la connexion de l'agent
+  command: zabbix_agentd -t agent.ping
+  register: agent_test
+  changed_when: false
+  ignore_errors: yes
+
+- name: Afficher le résultat du test
+  debug:
+    msg: |
+      Zabbix Agent configuré sur {{ ansible_hostname }}
+      Server: {{ zabbix_server }}
+      Port Agent: {{ zabbix_agent_port }}
+      Test ping: {{ agent_test.stdout | default('OK') }}

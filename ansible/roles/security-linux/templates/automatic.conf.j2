@@ -1,0 +1,34 @@
+# Configuration dnf-automatic pour les mises à jour de sécurité
+# Généré par Ansible
+
+[commands]
+# Type de mise à jour: security = uniquement les patches de sécurité
+upgrade_type = security
+
+# Télécharger les mises à jour
+download_updates = yes
+
+# Appliquer automatiquement les mises à jour
+apply_updates = yes
+
+# Intervalle aléatoire avant l'exécution (en minutes)
+random_sleep = 360
+
+[emitters]
+# Émettre les messages vers le journal système
+emit_via = stdio
+
+[email]
+# Configuration email (optionnel)
+email_from = root@{{ ansible_hostname }}
+email_to = root
+email_host = localhost
+
+[command]
+# Commande de mise à jour
+# command_format = cat
+# stdin_format = {body}
+
+[base]
+# Activer le débogage
+debuglevel = 1

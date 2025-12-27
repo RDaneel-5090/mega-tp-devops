@@ -1,0 +1,15 @@
+# /etc/hosts - Généré par Ansible
+# Mega TP Infrastructure DevOps
+# Ne pas modifier manuellement
+
+127.0.0.1   localhost localhost.localdomain
+::1         localhost localhost.localdomain
+
+# Infrastructure Lab
+{{ hostvars['admin']['ansible_host'] }}    admin admin.{{ domain_name }}
+{{ hostvars['node01']['ansible_host'] }}   node01 node01.{{ domain_name }}
+{{ hostvars['node02']['ansible_host'] }}   node02 node02.{{ domain_name }}
+{{ hostvars['winsrv']['ansible_host'] }}   winsrv winsrv.{{ domain_name }}
+
+# VIP Cluster HA
+{{ vip_address }}    cluster-vip cluster-vip.{{ domain_name }}

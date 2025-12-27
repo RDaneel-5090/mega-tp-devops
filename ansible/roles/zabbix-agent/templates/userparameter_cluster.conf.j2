@@ -1,0 +1,26 @@
+# UserParameters personnalisés pour le monitoring du cluster HA
+# Généré par Ansible - Ne pas modifier manuellement
+
+# ============================================
+# Monitoring du cluster Pacemaker
+# ============================================
+UserParameter=cluster.status,/etc/zabbix/scripts/check_cluster.sh status
+UserParameter=cluster.nodes.online,/etc/zabbix/scripts/check_cluster.sh nodes_online
+UserParameter=cluster.resources.running,/etc/zabbix/scripts/check_cluster.sh resources_running
+UserParameter=cluster.resources.stopped,/etc/zabbix/scripts/check_cluster.sh resources_stopped
+UserParameter=cluster.vip.status,/etc/zabbix/scripts/check_cluster.sh vip_status
+UserParameter=cluster.is.master,/etc/zabbix/scripts/check_cluster.sh is_master
+
+# ============================================
+# Monitoring Nginx
+# ============================================
+UserParameter=nginx.status,/etc/zabbix/scripts/check_nginx.sh status
+UserParameter=nginx.connections.active,/etc/zabbix/scripts/check_nginx.sh connections_active
+UserParameter=nginx.http.check,/etc/zabbix/scripts/check_nginx.sh http_check
+UserParameter=nginx.response.time,/etc/zabbix/scripts/check_nginx.sh response_time
+
+# ============================================
+# Monitoring Samba
+# ============================================
+UserParameter=samba.status,systemctl is-active smb &>/dev/null && echo 1 || echo 0
+UserParameter=samba.connections,smbstatus -b 2>/dev/null | tail -n +5 | wc -l

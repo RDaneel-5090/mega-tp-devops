@@ -1,0 +1,44 @@
+---
+# ============================================
+# Playbook de Sécurisation - security.yml
+# Applique le durcissement sur tous les serveurs
+# ============================================
+
+- name: "Sécurisation des serveurs Linux (RedHat)"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: security-linux
+      tags: [security, hardening, linux]
+
+- name: "Sécurisation des serveurs Windows"
+  hosts: windows_servers
+  roles:
+    - role: windows-hardening
+      tags: [security, hardening, windows]
+
+- name: "Résumé de la sécurisation"
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Afficher le résumé
+      debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════
+          SÉCURISATION TERMINÉE
+          ═══════════════════════════════════════════════════════════
+          
+          🔒 Serveurs Linux sécurisés:
+             - Firewalld configuré
+             - SSH durci (root désactivé)
+             - Mises à jour automatiques activées
+             - Audit système activé
+          
+          🔒 Serveurs Windows sécurisés:
+             - LAPS installé
+             - Compte Guest désactivé
+             - Pare-feu activé
+             - Politique de mot de passe stricte
+             - SMBv1 et LLMNR désactivés
+          
+          ═══════════════════════════════════════════════════════════

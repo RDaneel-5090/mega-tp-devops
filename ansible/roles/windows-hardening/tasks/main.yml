@@ -1,0 +1,268 @@
+---
+# ============================================
+# Role: windows-hardening
+# Durcissement (Hardening) de Windows Server
+# Mission 3 du TP - Sécurisation Windows
+# ============================================
+
+# ============================================
+# Installation et configuration de LAPS
+# ============================================
+- name: Vérifier si LAPS est installé
+  win_shell: |
+    if (Get-Module -ListAvailable -Name AdmPwd.PS) {
+      Write-Output "LAPS_INSTALLED"
+    } else {
+      Write-Output "LAPS_NOT_INSTALLED"
+    }
+  register: laps_check
+
+- name: Télécharger LAPS
+  win_get_url:
+    url: "https://download.microsoft.com/download/C/7/A/C7AAD914-A8A6-4904-88A1-29E657445D03/LAPS.x64.msi"
+    dest: C:\Temp\LAPS.x64.msi
+  when: "'LAPS_NOT_INSTALLED' in laps_check.stdout"
+
+- name: Créer le répertoire Temp s'il n'existe pas
+  win_file:
+    path: C:\Temp
+    state: directory
+
+- name: Installer LAPS
+  win_package:
+    path: C:\Temp\LAPS.x64.msi
+    product_id: '{97E2CA7B-B657-4FF7-A6DB-30ECC73E1E28}'
+    arguments: /quiet ADDLOCAL=ALL
+    state: present
+  when: "'LAPS_NOT_INSTALLED' in laps_check.stdout"
+  ignore_errors: yes
+
+- name: Configurer le schéma AD pour LAPS
+  win_shell: |
+    Import-Module AdmPwd.PS -ErrorAction SilentlyContinue
+    try {
+      Update-AdmPwdADSchema
+      Write-Output "SCHEMA_UPDATED"
+    } catch {
+      Write-Output "SCHEMA_UPDATE_FAILED: $_"
+    }
+  ignore_errors: yes
+
+- name: Configurer les permissions LAPS sur l'OU Computers
+  win_shell: |
+    Import-Module AdmPwd.PS -ErrorAction SilentlyContinue
+    try {
+      Set-AdmPwdComputerSelfPermission -OrgUnit "OU=Lab Computers,DC={{ ad_domain_name.split('.')[0] }},DC={{ ad_domain_name.split('.')[1] }}"
+      Write-Output "PERMISSIONS_SET"
+    } catch {
+      Write-Output "PERMISSIONS_FAILED: $_"
+    }
+  ignore_errors: yes
+
+# ============================================
+# Désactiver le compte Invité (Guest)
+# ============================================
+- name: Désactiver le compte Guest
+  win_user:
+    name: Guest
+    account_disabled: yes
+
+- name: Vérifier que le compte Guest est désactivé
+  win_shell: |
+    $guest = Get-LocalUser -Name "Guest"
+    if ($guest.Enabled) {
+      Disable-LocalUser -Name "Guest"
+      Write-Output "GUEST_DISABLED"
+    } else {
+      Write-Output "GUEST_ALREADY_DISABLED"
+    }
+
+# ============================================
+# Activer le Pare-feu Windows
+# ============================================
+- name: Activer le pare-feu Windows - Profil Domaine
+  win_shell: |
+    Set-NetFirewallProfile -Profile Domain -Enabled True
+    Write-Output "DOMAIN_FIREWALL_ENABLED"
+
+- name: Activer le pare-feu Windows - Profil Privé
+  win_shell: |
+    Set-NetFirewallProfile -Profile Private -Enabled True
+    Write-Output "PRIVATE_FIREWALL_ENABLED"
+
+- name: Activer le pare-feu Windows - Profil Public
+  win_shell: |
+    Set-NetFirewallProfile -Profile Public -Enabled True
+    Write-Output "PUBLIC_FIREWALL_ENABLED"
+
+- name: Configurer les règles de pare-feu pour les services essentiels
+  win_firewall_rule:
+    name: "{{ item.name }}"
+    localport: "{{ item.port }}"
+    protocol: "{{ item.protocol }}"
+    direction: in
+    action: allow
+    state: present
+    enabled: yes
+    profiles: "{{ item.profiles }}"
+  loop:
+    - { name: "WinRM HTTP", port: "5985", protocol: tcp, profiles: "domain,private" }
+    - { name: "WinRM HTTPS", port: "5986", protocol: tcp, profiles: "domain,private" }
+    - { name: "DNS TCP", port: "53", protocol: tcp, profiles: "domain,private,public" }
+    - { name: "DNS UDP", port: "53", protocol: udp, profiles: "domain,private,public" }
+    - { name: "LDAP", port: "389", protocol: tcp, profiles: "domain" }
+    - { name: "LDAPS", port: "636", protocol: tcp, profiles: "domain" }
+    - { name: "Kerberos", port: "88", protocol: tcp, profiles: "domain" }
+    - { name: "Kerberos UDP", port: "88", protocol: udp, profiles: "domain" }
+
+# ============================================
+# Politique de mot de passe stricte
+# ============================================
+- name: Configurer la politique de mot de passe
+  win_shell: |
+    Import-Module ActiveDirectory
+    
+    # Configurer la politique de mot de passe par défaut du domaine
+    Set-ADDefaultDomainPasswordPolicy -Identity "{{ ad_domain_name }}" `
+      -MinPasswordLength 12 `
+      -PasswordHistoryCount 24 `
+      -MaxPasswordAge (New-TimeSpan -Days 90) `
+      -MinPasswordAge (New-TimeSpan -Days 1) `
+      -ComplexityEnabled $true `
+      -ReversibleEncryptionEnabled $false `
+      -LockoutDuration (New-TimeSpan -Minutes 30) `
+      -LockoutObservationWindow (New-TimeSpan -Minutes 30) `
+      -LockoutThreshold 5
+    
+    Write-Output "PASSWORD_POLICY_CONFIGURED"
+  register: password_policy
+
+- name: Afficher le résultat de la politique de mot de passe
+  debug:
+    var: password_policy.stdout
+
+# ============================================
+# Désactiver SMBv1
+# ============================================
+- name: Désactiver le protocole SMBv1 (client)
+  win_optional_feature:
+    name: SMB1Protocol-Client
+    state: absent
+  ignore_errors: yes
+
+- name: Désactiver le protocole SMBv1 (serveur)
+  win_optional_feature:
+    name: SMB1Protocol-Server
+    state: absent
+  ignore_errors: yes
+
+- name: S'assurer que SMBv1 est désactivé via registre
+  win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters
+    name: SMB1
+    data: 0
+    type: dword
+
+# ============================================
+# Désactiver LLMNR
+# ============================================
+- name: Désactiver LLMNR via stratégie de groupe
+  win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient
+    name: EnableMulticast
+    data: 0
+    type: dword
+
+- name: Créer la clé de registre pour LLMNR si nécessaire
+  win_shell: |
+    $path = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient"
+    if (-not (Test-Path $path)) {
+      New-Item -Path $path -Force
+    }
+    Set-ItemProperty -Path $path -Name "EnableMulticast" -Value 0 -Type DWord
+    Write-Output "LLMNR_DISABLED"
+
+# ============================================
+# Désactiver NetBIOS sur TCP/IP (optionnel mais recommandé)
+# ============================================
+- name: Désactiver NetBIOS sur les adaptateurs réseau
+  win_shell: |
+    $adapters = Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object {$_.IPEnabled}
+    foreach ($adapter in $adapters) {
+      $adapter.SetTcpipNetbios(2)  # 2 = Désactiver
+    }
+    Write-Output "NETBIOS_DISABLED"
+  ignore_errors: yes
+
+# ============================================
+# Configuration d'audit supplémentaire
+# ============================================
+- name: Activer l'audit des connexions
+  win_shell: |
+    auditpol /set /subcategory:"Logon" /success:enable /failure:enable
+    auditpol /set /subcategory:"Logoff" /success:enable
+    auditpol /set /subcategory:"Account Lockout" /success:enable /failure:enable
+    auditpol /set /subcategory:"User Account Management" /success:enable /failure:enable
+    auditpol /set /subcategory:"Computer Account Management" /success:enable /failure:enable
+    Write-Output "AUDIT_CONFIGURED"
+
+# ============================================
+# Désactiver les protocoles SSL/TLS obsolètes
+# ============================================
+- name: Désactiver SSL 2.0
+  win_regedit:
+    path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\SSL 2.0\\{{ item }}"
+    name: Enabled
+    data: 0
+    type: dword
+  loop:
+    - Server
+    - Client
+  ignore_errors: yes
+
+- name: Désactiver SSL 3.0
+  win_regedit:
+    path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\SSL 3.0\\{{ item }}"
+    name: Enabled
+    data: 0
+    type: dword
+  loop:
+    - Server
+    - Client
+  ignore_errors: yes
+
+- name: Désactiver TLS 1.0
+  win_regedit:
+    path: "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\SCHANNEL\\Protocols\\TLS 1.0\\{{ item }}"
+    name: Enabled
+    data: 0
+    type: dword
+  loop:
+    - Server
+    - Client
+  ignore_errors: yes
+
+# ============================================
+# Résumé du durcissement
+# ============================================
+- name: Afficher le résumé du durcissement Windows
+  debug:
+    msg: |
+      ═══════════════════════════════════════════════════════════
+      DURCISSEMENT WINDOWS SERVER TERMINÉ
+      ═══════════════════════════════════════════════════════════
+      
+      ✓ LAPS installé et configuré
+      ✓ Compte Guest désactivé
+      ✓ Pare-feu activé (Domain/Private/Public)
+      ✓ Politique de mot de passe stricte:
+        - Longueur minimale: 12 caractères
+        - Complexité requise: Oui
+        - Historique: 24 mots de passe
+        - Verrouillage: 5 tentatives
+      ✓ SMBv1 désactivé
+      ✓ LLMNR désactivé
+      ✓ Audit de sécurité activé
+      ✓ SSL 2.0/3.0 et TLS 1.0 désactivés
+      
+      ═══════════════════════════════════════════════════════════

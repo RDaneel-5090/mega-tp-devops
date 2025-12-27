@@ -1,0 +1,85 @@
+---
+# ============================================
+# Playbook Cluster HA - cluster.yml
+# Déploiement Pacemaker, Corosync, Nginx, Samba
+# ============================================
+
+- name: "Configuration commune des nœuds du cluster"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: common
+      tags: [common, setup]
+
+- name: "Installation et configuration du cluster HA"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: ha-cluster
+      tags: [cluster, ha, pacemaker, corosync]
+
+- name: "Déploiement Nginx en haute disponibilité"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: nginx-ha
+      tags: [nginx, web, ha]
+
+- name: "Déploiement Samba en haute disponibilité"
+  hosts: ha_cluster
+  become: yes
+  roles:
+    - role: samba-ha
+      tags: [samba, smb, ha]
+
+- name: "Configuration des ressources du cluster"
+  hosts: ha_cluster[0]
+  become: yes
+  tasks:
+    - name: Configurer les ressources Pacemaker
+      include_role:
+        name: ha-cluster
+        tasks_from: configure_resources.yml
+      tags: [cluster, resources]
+
+- name: "Vérification finale du cluster"
+  hosts: ha_cluster[0]
+  become: yes
+  tasks:
+    - name: Attendre que le cluster soit stable
+      command: pcs status
+      register: cluster_status
+      until: cluster_status.rc == 0
+      retries: 10
+      delay: 10
+
+    - name: Afficher l'état du cluster
+      debug:
+        var: cluster_status.stdout_lines
+
+    - name: Tester l'accès via la VIP
+      uri:
+        url: "http://{{ vip_address }}"
+        status_code: 200
+      register: vip_test
+      ignore_errors: yes
+
+    - name: Résumé du cluster
+      debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════
+          CLUSTER HAUTE DISPONIBILITÉ OPÉRATIONNEL
+          ═══════════════════════════════════════════════════════════
+          
+          📍 VIP: {{ vip_address }}
+          🌐 Web: http://{{ vip_address }}
+          📁 Samba: \\{{ vip_address }}\share
+          
+          📦 Ressources:
+             - cluster_vip (IPaddr2)
+             - nginx_service (Nginx)
+             - samba_service (SMB)
+          
+          ✅ Test VIP: {{ 'OK' if vip_test.status == 200 else 'ECHEC' }}
+          
+          ═══════════════════════════════════════════════════════════

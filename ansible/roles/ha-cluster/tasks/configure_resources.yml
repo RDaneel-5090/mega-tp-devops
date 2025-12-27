@@ -1,0 +1,139 @@
+---
+# ============================================
+# Role: ha-cluster
+# Configuration des ressources Pacemaker (VIP, Nginx, Samba)
+# Ce fichier est exécuté uniquement sur le premier nœud
+# ============================================
+
+- name: Vérifier que le cluster est opérationnel
+  command: pcs cluster status
+  register: cluster_check
+  changed_when: false
+  failed_when: cluster_check.rc != 0
+
+- name: Attendre que tous les nœuds soient en ligne
+  command: pcs status nodes
+  register: nodes_status
+  until: "'Online' in nodes_status.stdout"
+  retries: 10
+  delay: 5
+
+# ============================================
+# Création de l'IP Virtuelle (VIP)
+# ============================================
+- name: Vérifier si la ressource VIP existe
+  command: pcs resource status cluster_vip
+  register: vip_status
+  changed_when: false
+  failed_when: false
+
+- name: Créer la ressource VIP (IP Flottante)
+  command: >
+    pcs resource create cluster_vip ocf:heartbeat:IPaddr2
+    ip={{ vip_address }}
+    cidr_netmask={{ vip_cidr }}
+    nic={{ vip_interface }}
+    op monitor interval=10s timeout=20s
+    op start timeout=20s
+    op stop timeout=20s
+    --group ha_services
+  when: vip_status.rc != 0
+
+# ============================================
+# Création de la ressource Nginx
+# ============================================
+- name: Vérifier si la ressource Nginx existe
+  command: pcs resource status nginx_service
+  register: nginx_status
+  changed_when: false
+  failed_when: false
+
+- name: Créer la ressource Nginx
+  command: >
+    pcs resource create nginx_service ocf:heartbeat:nginx
+    configfile=/etc/nginx/nginx.conf
+    op monitor interval=10s timeout=30s
+    op start timeout=60s
+    op stop timeout=60s
+    --group ha_services
+  when: nginx_status.rc != 0
+
+# ============================================
+# Création de la ressource Samba
+# ============================================
+- name: Vérifier si la ressource Samba existe
+  command: pcs resource status samba_service
+  register: samba_status
+  changed_when: false
+  failed_when: false
+
+- name: Créer la ressource Samba
+  command: >
+    pcs resource create samba_service systemd:smb
+    op monitor interval=10s timeout=30s
+    op start timeout=60s
+    op stop timeout=60s
+    --group ha_services
+  when: samba_status.rc != 0
+
+# ============================================
+# Configuration des contraintes
+# ============================================
+- name: Vérifier les contraintes existantes
+  command: pcs constraint show
+  register: constraints_status
+  changed_when: false
+
+# Les ressources dans un groupe sont automatiquement colocalisées
+# et démarrent/s'arrêtent dans l'ordre
+
+- name: Configurer l'ordre de démarrage des ressources
+  command: >
+    pcs constraint order set cluster_vip nginx_service samba_service
+    sequential=true
+  when: "'ha_services' not in constraints_status.stdout or 'order' not in constraints_status.stdout"
+  ignore_errors: yes
+
+- name: Définir la préférence de nœud pour le groupe
+  command: >
+    pcs constraint location ha_services prefers 
+    {{ hostvars[groups['ha_cluster'][0]]['ansible_host'] }}=100
+  ignore_errors: yes
+
+# ============================================
+# Vérification finale
+# ============================================
+- name: Afficher la configuration des ressources
+  command: pcs resource show
+  register: resource_show
+  changed_when: false
+
+- name: Afficher les contraintes
+  command: pcs constraint show
+  register: constraint_show
+  changed_when: false
+
+- name: Afficher l'état complet du cluster
+  command: pcs status
+  register: final_status
+  changed_when: false
+
+- name: Résumé de la configuration du cluster
+  debug:
+    msg: |
+      ═══════════════════════════════════════════════════════════
+      CONFIGURATION DU CLUSTER HA TERMINÉE
+      ═══════════════════════════════════════════════════════════
+      
+      📍 VIP (IP Flottante): {{ vip_address }}
+      
+      📦 Groupe de ressources: ha_services
+         - cluster_vip (IPaddr2)
+         - nginx_service (Nginx)
+         - samba_service (Samba/SMB)
+      
+      ⚙️ Les services basculent ENSEMBLE en cas de panne
+      
+      🔍 État actuel:
+      {{ final_status.stdout }}
+      ═══════════════════════════════════════════════════════════
