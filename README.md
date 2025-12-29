@@ -420,7 +420,10 @@ ansible node01 -m ping -vvvv
 
 1. **État du Cluster** (`pcs status
 - **RDaneel-5090** - *Développement initial*<img width="1258" height="684" alt="preuvejuju1" src="https://github.com/user-attachments/assets/23a5483f-509c-4b40-86b1-22cb5394b888" />
+
 2. **Dashboard Zabbix** avec métriques CPU/RAM
+  <img width="2164" height="1452" alt="image" src="https://github.com/user-attachments/assets/930db497-11bd-47dc-9019-3823f374b48a" />
+
 3. **Page Web** via la VIP (192.168.56.100)
   <img width="1447" height="1888" alt="image" src="https://github.com/user-attachments/assets/23d88cd0-b3c5-4058-9344-b878fe51c528" />
 
