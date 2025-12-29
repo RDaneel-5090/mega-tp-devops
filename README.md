@@ -33,7 +33,7 @@ Ce projet implémente une infrastructure DevOps complète avec **haute disponibi
 
 ---
 
-## 🏗 Architecture
+##  Architecture
 
 ### Schéma d'Infrastructure
 
