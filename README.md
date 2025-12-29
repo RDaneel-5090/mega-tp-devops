@@ -1,10 +1,10 @@
-# 🚀 Mega TP - Infrastructure DevOps Haute Disponibilité
+#  Mega TP - Infrastructure DevOps Haute Disponibilité
 
 [![Vagrant](https://img.shields.io/badge/Vagrant-2.3+-blue.svg)](https://www.vagrantup.com/)
 [![Ansible](https://img.shields.io/badge/Ansible-2.15+-red.svg)](https://www.ansible.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## 📋 Table des Matières
+##  Table des Matières
 
 - [Présentation](#-présentation)
 - [Architecture](#-architecture)
@@ -19,7 +19,7 @@
 
 ---
 
-## 🎯 Présentation
+##  Présentation
 
 Ce projet implémente une infrastructure DevOps complète avec **haute disponibilité**, **sécurisation** et **supervision** automatisées via **Vagrant** et **Ansible**.
 
@@ -50,7 +50,7 @@ Ce projet implémente une infrastructure DevOps complète avec **haute disponibi
 │    ┌─────────────┐         VIP: 192.168.56.100                       │
 │    │  VIP (HA)   │◄────────────────────────────┐                     │
 │    └──────┬──────┘                             │                     │
-│           │                                     │                    │
+│           │                                    │                     │
 │    ┌──────┴──────┬─────────────────────────────┤                     │
 │    ▼             ▼                             │                     │
 │  ┌───────────────────┐   ┌───────────────────┐ │                     │
@@ -68,24 +68,24 @@ Ce projet implémente une infrastructure DevOps complète avec **haute disponibi
 │                        │                       │                     │
 │                        ▼                       │                     │
 │  ┌───────────────────────────────────────────┐ │                     │
-│  │              Admin Server                  │ │                    │
-│  │           192.168.56.10                    │ │                    │
-│  │  ───────────────────────                   │ │                    │
-│  │  • Ansible Controller                      │ │                    │
-│  │  • Zabbix Server                           │─┘                    │
-│  │  • Ubuntu 22.04                            │                      │
+│  │              Admin Server                 │ │                     │
+│  │           192.168.56.10                   │ │                     │
+│  │  ───────────────────────                  │ │                     │
+│  │  • Ansible Controller                     │ │                     │
+│  │  • Zabbix Server                          │─┘                     │
+│  │  • Ubuntu 22.04                           │                       │
 │  └───────────────────────────────────────────┘                       │
 │                        │                                             │
 │                        │ Ansible (WinRM)                             │
 │                        ▼                                             │
 │  ┌───────────────────────────────────────────┐                       │
-│  │           Windows Server                   │                      │
-│  │           192.168.56.13                    │                      │
-│  │  ───────────────────────                   │                      │
-│  │  • Active Directory (DC)                   │                      │
-│  │  • DNS Server                              │                      │
-│  │  • LAPS                                    │                      │
-│  │  • Windows Server 2019                     │                      │
+│  │           Windows Server                  │                       │
+│  │           192.168.56.13                   │                       │
+│  │  ───────────────────────                  │                       │
+│  │  • Active Directory (DC)                  │                       │
+│  │  • DNS Server                             │                       │
+│  │  • LAPS                                   │                       │
+│  │  • Windows Server 2019                    │                       │
 │  └───────────────────────────────────────────┘                       │
 │                                                                      │
 └──────────────────────────────────────────────────────────────────────┘
@@ -103,7 +103,7 @@ Ce projet implémente une infrastructure DevOps complète avec **haute disponibi
 
 ---
 
-## 📦 Prérequis
+##  Prérequis
 
 ### Logiciels Requis
 
@@ -126,12 +126,12 @@ vagrant plugin install vagrant-reload
 
 ---
 
-## 🚀 Installation Rapide
+##  Installation Rapide
 
 ### 1. Cloner le Dépôt
 
 ```bash
-git clone https://github.com/votre-username/mega-tp-devops.git
+git clone https://github.com/RDaneel-5090/mega-tp-devops.git
 cd mega-tp-devops
 ```
 
@@ -168,7 +168,7 @@ ssh ansible@192.168.56.11 "sudo pcs status"
 
 ---
 
-## 📘 Guide Détaillé
+##  Guide Détaillé
 
 ### Structure du Projet
 
@@ -278,7 +278,7 @@ ansible-playbook site.yml --tags windows
 
 ---
 
-## 🔗 Accès aux Services
+##  Accès aux Services
 
 ### URLs et Identifiants
 
@@ -305,7 +305,7 @@ ansible-playbook site.yml --tags windows
 
 ---
 
-## 🛠 Commandes Utiles
+##  Commandes Utiles
 
 ### Gestion du Cluster
 
@@ -362,7 +362,7 @@ ssh ansible@192.168.56.11 "sudo pcs status"
 
 ---
 
-## 🔧 Dépannage
+##  Dépannage
 
 ### Problèmes Courants
 
@@ -412,9 +412,9 @@ ansible node01 -m ping -vvvv
 
 ---
 
-## 📸 Captures d'Écran
+##  Captures d'Écran
 
-> 📁 Les captures d'écran sont disponibles dans le dossier `zabbix/dashboards/`
+> Les captures d'écran sont disponibles dans le dossier `zabbix/dashboards/`
 
 ### Éléments à capturer pour le rendu:
 
@@ -428,12 +428,12 @@ ansible node01 -m ping -vvvv
 
 ---
 
-## 👥 Auteurs
-MM & s matteo
-Haj marwan
+##  Auteurs
+RDaneel-5090
+Mishka-sys
 
 
-## 🙏 Remerciements
+##  Remerciements
 
 - Documentation Ansible: https://docs.ansible.com/
 - Documentation Pacemaker: https://clusterlabs.org/pacemaker/doc/
