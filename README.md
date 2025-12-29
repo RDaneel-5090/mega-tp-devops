@@ -418,16 +418,20 @@ ansible node01 -m ping -vvvv
 
 ### Éléments à capturer pour le rendu:
 
-1. **État du Cluster** (`pcs status`)
+1. **État du Cluster** (`pcs status
+- **RDaneel-5090** - *Développement initial*<img width="1258" height="684" alt="preuvejuju1" src="https://github.com/user-attachments/assets/23a5483f-509c-4b40-86b1-22cb5394b888" />
 2. **Dashboard Zabbix** avec métriques CPU/RAM
 3. **Page Web** via la VIP (192.168.56.100)
+  <img width="1447" height="1888" alt="image" src="https://github.com/user-attachments/assets/23d88cd0-b3c5-4058-9344-b878fe51c528" />
+
 4. **Console AD** sur Windows Server
 
 ---
 
 ## 👥 Auteurs
+MM & s matteo
+Haj marwan
 
-- **RDaneel-5090** - *Développement initial*
 
 ## 🙏 Remerciements
 
