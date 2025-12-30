@@ -430,6 +430,8 @@ ansible node01 -m ping -vvvv
   <img width="1447" height="1888" alt="image" src="https://github.com/user-attachments/assets/23d88cd0-b3c5-4058-9344-b878fe51c528" />
 
 4. **Console AD** sur Windows Server
+<img width="2007" height="1104" alt="image" src="https://github.com/user-attachments/assets/6bff79e2-69a1-41fd-9a72-85ca1b7bea7a" />
+
 
 ---
 
